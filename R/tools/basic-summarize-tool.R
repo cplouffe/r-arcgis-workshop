@@ -10,18 +10,18 @@ tool_exec = function(in_params, out_params) {
   load_pkgs(pkgs)
 
   # Print all inputs/outputs
-  print(in_params[[1]])
-  print(in_params[[2]])
-  print(in_params[[3]])
-  print(in_params[[4]])
-  print(out_params[[1]])
+  # print(in_params[[1]])
+  # print(in_params[[2]])
+  # print(in_params[[3]])
+  # print(in_params[[4]])
+  # print(out_params[[1]])
 
   # Get parameters
   source_data = in_params[[1]]
   group_fields = unname(unlist(in_params[[2]]))
   summarize_field = in_params[[3]]
   summarize_func = in_params[[4]]
-  final_fc = out_params[[1]]
+  final_df = out_params[[1]]
 
   # Import data set to data frame
   arc.progress_label('Reading data...')
@@ -34,15 +34,13 @@ tool_exec = function(in_params, out_params) {
   arc.progress_pos(75)
 
   # Group the data frame using the selected group fields, and then summarize
-  # the data frame by group using the provided functions.  Once analysis is
-  # complete, join the results back to our original data frame.
+  # the data frame by group using the provided functions.
   summarize_df = data.frame(data_df) %>%
     group_by_(.dots = group_fields) %>%
-    summarize_each_(summarize_func, summarize_field) %>%
-    right_join(data_df, by = group_fields)
+    summarize_each_(summarize_func, summarize_field)
 
-  # Write data frame to output feature class.
-  arc.write(final_fc, data_df)
+  # Write data frame to output standalone table.
+  arc.write(final_df, summarize_df)
 
   return(out_params)
 
@@ -58,9 +56,13 @@ load_pkgs = function(pkgs) {
 }
 
 # Test tool in standalone R
-library(arcgisbinding)
-arc.check_product()
-source_data = 'data/r-arcgis-data.gdb/toronto_crime'
-group_fields = unname(unlist(list(`NA` = 'Arsons', `NA` = 'Murders')))
-summarize_field = 'Total_Major_Crime_Incidents'
-summarize_func = 'mean'
+# library(arcgisbinding)
+# arc.check_product()
+# source_data = 'data/r-arcgis-data.gdb/toronto_crime'
+# group_fields = unname(unlist(list(`NA` = 'Arsons', `NA` = 'Murders')))
+# summarize_field = 'Total_Major_Crime_Incidents'
+# summarize_func = 'mean'
+# final_df = 'data/r-arcgis-data.gdb/summarize_crime'
+
+# Inspect the multiple-summarize-tool.R script to learn how to output
+# to see how to output a feature class.

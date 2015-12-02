@@ -17,6 +17,7 @@ pkgs = c('sp', 'dplyr')
 # Install and load required packages using the load_pkgs() function from the
 # 'helper-functions.R' file
 load_pkgs(pkgs)
+
 # This function loads all required packages specified in a given character
 # vector, but will also install any of the packages provided that have not
 # already been installed on that machine. This is especially useful if an
@@ -28,7 +29,6 @@ fib_nums = c(0, 1, 1, 2, 3, 5, 8, 13, 21, 34)
 class(fib_nums)
 
 # Review of basic vector subsetting/indexing in R
-
 fib_nums > 5
 fib_nums[fib_nums > 5]
 cond = fib_nums < 5
@@ -64,19 +64,22 @@ crime_df[crime_df$Assaults > 300 & crime_df$Assaults < 350, ]
 crime_df[c(1, 2, 3), ]
 ncol(crime_df)
 crime_df[ , 1:3]
-crime_df[ , c('Thefts')]
+crime_df[ , c('Thefts', 'Arsons')]
 crime_df[ , -1:-14]
 crime_df[crime_df$Vehicle_Thefts > 100, c('AREA_S_CD', 'Neighbourhood')]
 
 # Challenges
 
 # a) Create a subset of the last 5 columns of crime_df
+crime_df[ , (ncol(crime_df) - 4):ncol(crime_df)]
 
 # b) Create a subset of the first 50 records of crime_df including only the
 # assaults and equity score columns
+crime_df[1:50, c('Equity_Score', 'Assaults')]
 
 # c) Create a subset of all records from crime_df where there are at least
 # 20 thefts, OR where there is at least 1 arson and 300 major crime incidents
+crime_df[crime_df$Thefts >= 20 | (crime_df$Arsons >= 1 & crime_df$Total.Major.Crime.Incidents >= 300), ]
 
 
 # 2. Manipulating data with dplyr ----------------------------------------------
@@ -98,8 +101,8 @@ crime_df[crime_df$Vehicle_Thefts > 100, c('AREA_S_CD', 'Neighbourhood')]
 # filter() allows you to subset rows from a data frame similar to base R.  The
 # first argument for filter() is the data frame, and all subsequent arguments
 # are conditions to filter the data frame by.
-
 crime_df[crime_df$Neighbourhood == 'Yonge-St.Clair', ]
+
 # This is equivalent to the following dplyr code:
 filter(crime_df, Neighbourhood == 'Yonge-St.Clair')
 
@@ -111,7 +114,7 @@ filter(crime_df, Arsons > 3 | Thefts > 10)
 
 # More examples
 filter(crime_df, AREA_S_CD %in% c(27, 118, 44, 121))
-filter(crime_df, Murders != 0, Neighbourhood)
+filter(crime_df, Murders != 0, Neighbourhood == 'Yonge-St.Clair')
 
 # 2.2) arrange()
 # arrange() allows you to sort rows in a data frame based on a set of
@@ -119,7 +122,6 @@ filter(crime_df, Murders != 0, Neighbourhood)
 # arrange() is the data frame, and all subsequent arguments are column names
 # (or more complicated expressions) to order the data frame.  Each additional
 # column will be used to break ties in the preceding columns
-
 arrange(crime_df, Arsons)
 
 # It is much easier to understand what arrange() does by wrapping it with the
@@ -127,7 +129,7 @@ arrange(crime_df, Arsons)
 View(arrange(crime_df, Arsons))
 
 # If you wish to sort in descending order, you can use the desc() function
-View(arrange, crime_df, desc(Arsons))
+View(arrange(crime_df, desc(Arsons)))
 
 # Sort by multiple different columns
 View(arrange(crime_df, Arsons, Assaults))
@@ -136,7 +138,6 @@ View(arrange(crime_df, Arsons, Assaults))
 # select() allows you to select specified columns (or variables) from a data
 # frame.  The first argument for select() is the data frame, and all subsequent
 # argument are the columns to 'select'.
-
 select(crime_df, AREA_S_CD, Equity_Score)
 
 # You can also choose to remove columns from a data frame by including a
@@ -195,6 +196,7 @@ crime_df %>%
 
 # Here is the same workflow using nested functions:
 arrange(select(filter(crime_df, Equity_Score > 80), Neighbourhood, Thefts, Vehicle.Thefts), Thefts, Vehicle.Thefts)
+
 # and here using variables to store intermediate values:
 crime_1 = filter(crime_df, Equity_Score > 80)
 crime_2 = select(crime_1, Neighbourhood, Thefts, Vehicle.Thefts)
@@ -218,9 +220,15 @@ summarize(arson_groups, mean_fire = mean(Fire.Vehicle.Incidents, na.rm = TRUE))
 
 # a) Create a data set containing only the neighbourhood names where there have
 # been more than 100 fire vehicle incidents and less than 400 fire medical calls
+crime_df %>%
+  filter(Fire.Vehicle.Incidents > 100, Fire.Medical.Calls < 400) %>%
+  select(Neighbourhood)
 
 # b) Group the crime data set by number of murders, and then calculate the mean
 # and standard deviation of total major crime incidents for each group
+crime_df %>%
+  group_by(Murders) %>%
+  summarise_each(c('mean', 'sd'), Total.Major.Crime.Incidents)
 
 # c) Find the neighbourhoods where there have been at least 30 drug arrests,
 # and then return the neighbourhoods with the top 20 equity scores from that
@@ -228,6 +236,11 @@ summarize(arson_groups, mean_fire = mean(Fire.Vehicle.Incidents, na.rm = TRUE))
 
 # Hint: You will need to use your indexing skills from base R in conjunction
 # with dplyr.
+  crime_df %>%
+    filter(Drug.Arrests >= 30) %>%
+    arrange(desc(Equity_Score)) %>%
+    .[1:20, ]
+
 
 # 3. Spatial data handling with arcgisbinding ----------------------------------
 
@@ -249,15 +262,15 @@ library(arcgisbinding)
 # functions included in the R-ArcGIS Bridge.
 arc.check_product()
 
-# Now that you have validated your license, you can begin working with spatial
+# Now that you have authenticated your license, you can begin working with spatial
 # data in R using arcgisbinding.
 
-# The arcgisbinding package allows you to load datafrom a geodatabase (GDB) or
+# The arcgisbinding package allows you to load data from a geodatabase (GDB) or
 # shapefile into R, perform some sort of analysis, and then return that data set
-# or some variant of it back to ArcGIS.
+# or some variant of it back to ArcGIS, or write it to disk.
 
 # Note: As of now, the R-ArcGIS Bridge will only allow you to work with vector
-# data.  In the next release of the bridge, there are plans to support working
+# data.  In a future release of the bridge, there are plans to support working
 # with several different ArcGIS raster data formats.
 
 # You can read in a feature class from a GDB using the arc.open() function by
@@ -271,27 +284,28 @@ tor_crime = arc.open(input_fc)
 # Note: 'data/r-arcgis-data.gdb/toronto_crime' is a relative path based on our
 # current working directory in R.  You can use the getwd() and setwd() functions
 # to determine and set your current working directory, or if you prefer, you
-# can pass the absolute path instead (e.g., C:/data/database.gdb/fc).
+# can pass the absolute path instead (e.g., C:/data/geodatabase.gdb/fc).
 
 # Inspect the tor_crime data set:
 class(tor_crime)
 tor_crime
 
-# arc.select() provides a way to load our tor_crime spatial object to an
+# arc.select() provides a means to load the tor_crime spatial object to an
 # ArcGIS data frame.  You can optionally pass a list of fields and a where
-# clause to arc.select() to filter down you data frame.
+# clause to arc.select() to filter the data before creating the ArcGIS
+# data frame.
 crime_fields = c('Neighbourhood', 'Hazardous_Incidents')
 tor_hazard_df = arc.select(tor_crime, fields = crime_fields)
 View(tor_hazard_df)
 
-# You can also create an sp object from your ArcGIS data frame using the
+# You can also create an sp object from the ArcGIS data frame using the
 # arc.data2sp() function.
 tor_hazard_sp = arc.data2sp(tor_hazard_df)
 
 # Plot the tor_crime_sp object
 spplot(tor_hazard_sp)
 
-# Ensure that our data set is still the same
+# Access the data frame from the sp object:
 tor_hazard_sp@data
 
 # In this tutorial, you will need all crime fields, so you should import the
@@ -305,10 +319,18 @@ tor_crime_df = arc.select(tor_crime, fields = '*')
 # than 50 (without using dplyr).
 
 # Hint: Use the R-ArcGIS help documentation.
+tor_crime_eq = arc.select(tor_crime, where_clause = 'Equity_Score > 50')
 
 # b) Create an sp object containing the fields for neighbourhood names and
 # assaults, where the number of assaults is lower than 50.  Use spplot to
 # plot the results.
+assaults_fields = c('Neighbourhood', 'Assaults')
+
+low_assaults_sp = tor_crime %>%
+  arc.select(fields = assaults_fields, where_clause = 'Assaults < 50') %>%
+  arc.data2sp()
+
+spplot(low_assaults_sp)
 
 # You can perform analysis on or edit an ArcGIS data frame, and once you are
 # complete, you can write it out to a new feature class.
@@ -346,3 +368,6 @@ arc.write(output_fc, tor_crime_df)
 
 # b) Create a new column in tor_crime_df adding Thefts and Vehicle
 # Thefts together
+
+# Continue learning about the R-ArcGIS Bridge and by looking through example
+# R-ArcGIS script tools provided in the R folder.

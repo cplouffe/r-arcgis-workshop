@@ -34,7 +34,7 @@ tool_exec = function(in_params, out_params) {
 
   # Perform some analysis on your data...
 
-  # return results.
+  # Return results.
   return(out_params)
 
 }
